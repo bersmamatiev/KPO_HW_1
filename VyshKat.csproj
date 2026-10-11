@@ -1,0 +1,59 @@
+using VyshKat.Models;
+
+namespace VyshKat.Services;
+
+public class Fleet
+{
+    private readonly IInspectionService _serviceCenter;
+    private readonly List<Transport> _transports = new();
+    private readonly List<Thing> _things = new();
+
+    public int TransportCount => _transports.Count;
+    public int ThingCount => _things.Count;
+
+    public Fleet(IInspectionService serviceCenter)
+    {
+        _serviceCenter = serviceCenter;
+    }
+
+    public bool AddTransport(Transport transport)
+    {
+        CheckInventoryNumber(transport);
+        if (!_serviceCenter.Inspect(transport))
+        {
+            return false;
+        }
+
+        _transports.Add(transport);
+        return true;
+    }
+
+    public void AddThing(Thing thing)
+    {
+        CheckInventoryNumber(thing);
+        _things.Add(thing);
+    }
+
+    public double GetTotalDailyEnergy()
+    {
+        return GetInventory().OfType<IEnergyConsumer>().Sum(item => item.DailyEnergy);
+    }
+
+    public IReadOnlyList<Transport> GetBeginnerTransports()
+    {
+        return _transports.Where(transport => transport.BeginnerRating >= 6).ToArray();
+    }
+
+    public IReadOnlyList<IInventoryItem> GetInventory()
+    {
+        return _transports.Cast<IInventoryItem>().Concat(_things).ToArray();
+    }
+
+    private void CheckInventoryNumber(IInventoryItem item)
+    {
+        if (GetInventory().Any(existing => existing.InventoryNumber == item.InventoryNumber))
+        {
+            throw new ArgumentException("Такой инвентарный номер уже существует");
+        }
+    }
+}
