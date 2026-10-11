@@ -1,0 +1,42 @@
+using VyshKat.Models;
+using Xunit;
+
+namespace VyshKat.Tests;
+
+public class ModelTests
+{
+    [Theory]
+    [InlineData("", "T-1")]
+    [InlineData("Шлем", "")]
+    [InlineData("  ", "T-1")]
+    public void EmptyNameOrNumberIsRejected(string name, string number)
+    {
+        Assert.Throws<ArgumentException>(() => new Helmet(name, number));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(11)]
+    public void RatingOutsideRangeIsRejected(int rating)
+    {
+        Assert.Throws<ArgumentException>(() => new Bicycle("Велосипед", "T-1", rating));
+    }
+
+    [Theory]
+    [InlineData(-1.0)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NaN)]
+    public void InvalidEnergyIsRejected(double energy)
+    {
+        Assert.Throws<ArgumentException>(() => new Scooter("Самокат", "T-1", 8, energy));
+        Assert.Throws<ArgumentException>(() => new ChargingStation("Станция", "V-1", energy));
+    }
+
+    [Fact]
+    public void InventoryNumberIsTrimmedBeforeDuplicateCheck()
+    {
+        var fleet = new Services.Fleet(new Services.ServiceCenter());
+        fleet.AddThing(new Helmet("Шлем", " V-1 "));
+        Assert.Throws<ArgumentException>(() => fleet.AddThing(new Helmet("Другой", "V-1")));
+    }
+}

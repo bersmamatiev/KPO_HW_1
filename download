@@ -1,0 +1,22 @@
+using VyshKat.Models;
+using VyshKat.Services;
+
+namespace VyshKat.Tests;
+
+public class FakeInspectionService : IInspectionService
+{
+    private readonly bool _decision;
+
+    public List<Transport> Checked { get; } = new();
+
+    public FakeInspectionService(bool decision)
+    {
+        _decision = decision;
+    }
+
+    public bool Inspect(Transport transport)
+    {
+        Checked.Add(transport);
+        return _decision;
+    }
+}

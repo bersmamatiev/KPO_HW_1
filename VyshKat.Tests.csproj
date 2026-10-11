@@ -1,0 +1,89 @@
+using Microsoft.Extensions.DependencyInjection;
+using VyshKat.Services;
+using Xunit;
+
+namespace VyshKat.Tests;
+
+public class ConsoleTests
+{
+    [Fact]
+    public void DemoShowsAllMainScenarios()
+    {
+        using var provider = DependencyConfig.Build();
+        var fleet = provider.GetRequiredService<Fleet>();
+        using var output = new StringWriter();
+        var application = new ConsoleApplication(fleet, TextReader.Null, output);
+        application.RunDemo();
+
+        string text = output.ToString();
+        Assert.Contains("техосмотр отклонён", text);
+        Assert.Contains("Транспорт: 3", text);
+        Assert.Contains("Вещи: 2", text);
+        Assert.Contains("Суточная энергия: 8", text);
+        Assert.Contains("Такой инвентарный номер уже существует", text);
+        string beginnerSection = text.Split("Для новичков:")[1].Split("Все объекты:")[0];
+        Assert.Contains("T-001", beginnerSection);
+        Assert.Contains("T-003", beginnerSection);
+        Assert.DoesNotContain("T-002", beginnerSection);
+        Assert.DoesNotContain("T-004", text.Split("Все объекты:")[1]);
+    }
+
+    [Fact]
+    public void MenuAddsObjectsAndPrintsReports()
+    {
+        string[] lines =
+        {
+            "1", "1", "Самокат", "T-1", "8", "1", "2,5",
+            "1", "2", "Велосипед", "T-2", "5", "1",
+            "1", "3", "Электровелосипед", "T-3", "6", "1", "1.5",
+            "1", "1", "Сломанный", "T-4", "8", "0", "3",
+            "2", "1", "Шлем", "V-1",
+            "2", "2", "Станция", "V-2", "4",
+            "3", "4", "5", "0"
+        };
+        using var provider = DependencyConfig.Build();
+        var fleet = provider.GetRequiredService<Fleet>();
+        using var input = new StringReader(string.Join(Environment.NewLine, lines));
+        using var output = new StringWriter();
+        new ConsoleApplication(fleet, input, output).Run();
+
+        Assert.Equal(3, fleet.TransportCount);
+        Assert.Equal(2, fleet.ThingCount);
+        Assert.Equal(8.0, fleet.GetTotalDailyEnergy(), 6);
+        Assert.Contains("техосмотр отклонён", output.ToString());
+        Assert.Contains("инвентарный номер: V-2", output.ToString());
+    }
+
+    [Fact]
+    public void BadInputDoesNotStopMenu()
+    {
+        string[] lines =
+        {
+            "99", "1", "99", "2", "99",
+            "1", "2", "Велосипед", "T-1", "abc",
+            "1", "2", "Велосипед", "T-1", "7", "да",
+            "2", "2", "Станция", "V-1", "-1",
+            "3", "4", "5", "0"
+        };
+        var fleet = new Fleet(new ServiceCenter());
+        using var input = new StringReader(string.Join(Environment.NewLine, lines));
+        using var output = new StringWriter();
+        new ConsoleApplication(fleet, input, output).Run();
+
+        Assert.Contains("Неизвестный пункт меню", output.ToString());
+        Assert.Contains("Ошибка:", output.ToString());
+        Assert.Contains("Список пуст", output.ToString());
+        Assert.Empty(fleet.GetInventory());
+    }
+
+    [Fact]
+    public void EndOfInputDuringAddingClosesMenu()
+    {
+        var fleet = new Fleet(new ServiceCenter());
+        using var input = new StringReader("1\n2\n");
+        using var output = new StringWriter();
+        new ConsoleApplication(fleet, input, output).Run();
+        Assert.Contains("Ввод завершён", output.ToString());
+        Assert.Empty(fleet.GetInventory());
+    }
+}
